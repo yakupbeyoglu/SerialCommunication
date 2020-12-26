@@ -1,0 +1,4 @@
+set( Local
+	Main.cpp
+)
+
