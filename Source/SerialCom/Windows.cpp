@@ -13,26 +13,7 @@ namespace Internal {
 }
 
 namespace SerialConnection {
-    /*void Connect(const std::string portname, int &baudrate, const ByteSize &ByteSize,
-                    const ConnectionMethod &method, const ParityCheck &parity, const StopBits &stopbits);
-       void Connect();
-       void DisConnect();
-       void Read();
-       void Write();
 
-*/
-    /*Serial();
-        ~Serial();
-
-       bool Connect(const std::string portname, const unsigned long  baudrate, const ByteSize &ByteSize,
-                    const ConnectionMethod &method, const ParityCheck &parity, const StopBits &stopbits);
-       bool Connect(const int &portnumber,const int &baud);
-       void DisConnect();
-
-       void Read();
-       void Write();
-       bool IsConnect()const;
-*/
 
     Serial::Serial(const ByteSize &size, const ConnectionMethod &method,
         const ParityCheck&parity, const StopBits stopbit) :
@@ -90,14 +71,15 @@ namespace SerialConnection {
         data->parameters.DCBlength = sizeof(DCB);
         data->parameters.BaudRate = baudrate;
         data->parameters.ByteSize = int(bytesize);
-       // data->parameters.StopBits = (stopbits == StopBits::OneStopBit) ? ONESTOPBIT : TWOSTOPBITS;
-        data->parameters.StopBits = ONESTOPBIT;
+        data->parameters.StopBits = (stopbits == StopBits::OneStopBit) ? ONESTOPBIT : TWOSTOPBITS;
         data->parameters.Parity = (parity == ParityCheck::Even) ? EVENPARITY :
-            (parity == ParityCheck::Odd) ? ODDPARITY : NOPARITY;
-        data->parameters.fBinary = true;
+                                (parity == ParityCheck::Odd) ? ODDPARITY : NOPARITY;
+        // in windows must be daya in binary
+          data->parameters.fBinary = true;
           data->parameters.fOutxCtsFlow = false;
           data->parameters.fOutxDsrFlow = false;
-       data->parameters.fDsrSensitivity = false;
+          data->parameters.fDsrSensitivity = false;
+          // rts and dtr pins enable to communicate
           data->parameters.fRtsControl = RTS_CONTROL_ENABLE;
           data->parameters.fDtrControl = DTR_CONTROL_ENABLE;
 
@@ -145,10 +127,7 @@ namespace SerialConnection {
             else {
                 GetOverlappedResult(data->connection, &data->write, &writtenbyte, false);
                 data->write.Offset += writtenbyte;
-
             }
-
-
         }
         return int(writtenbyte);
     }
@@ -160,12 +139,12 @@ namespace SerialConnection {
         bool status;
         DWORD readenbyte, errors;
         COMSTAT stat;
-        // clen buffer if has en error to read again!
+        DWORD read;
+
+
         readenbyte = WaitForSingleObject(data->read.hEvent, 500);
         if (readenbyte == WAIT_TIMEOUT) {
-           
             readenbyte = WaitForSingleObject(data->read.hEvent, 500);
-
         }
         ClearCommError(data->connection, &errors, &stat);
         //status = WaitCommEvent(data->connection, &errors, );
@@ -175,22 +154,15 @@ namespace SerialConnection {
             return 0;
         // how many byte can be readeable ?
         readenbyte = (DWORD)stat.cbInQue;
-        auto Read_Status = SetCommMask(data->connection, EV_RXCHAR);
         char *z = new char[readenbyte];
-        std::cout << "size = " << sizeof(*z);
-        //status = ReadFile(data->connection, &z, 1, &readenbyte, NULL);
-       DWORD read;
+      
        
        status = ReadFile(data->connection, z, readenbyte, &read, &data->read);
-          
+  
        std::cout << z << std::endl;
-        
-
-
-
-
-
-
+       std::string a = z;
+       if(a.find("ok") != std::string::npos)
+           return 10;
         if (!status) {
             // below can be delete
             if (GetLastError() == ERROR_IO_PENDING) {
