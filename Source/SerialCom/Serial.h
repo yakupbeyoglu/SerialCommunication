@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 namespace Internal {
     //opaque type method
@@ -45,7 +46,14 @@ namespace SerialConnection {
        int Read();
        int Write(const std::string &text);
        bool IsConnect()const;
+       std::vector<std::pair<std::string,std::string>> GetAvaliablePorts();
+       void SetPort(const int &portnumber,const int baudrate) {
+           if (isconnect) {
+               DisConnect();
+               Connect(portnumber, baudrate);
+           }
 
+       }
 
     private:
         Internal::serialdata *data;
@@ -58,5 +66,6 @@ namespace SerialConnection {
         std::string fullportpath;
         // read , write  or RW
         ConnectionMethod connectmethod;
+        std::vector<std::pair<std::string, std::string>> avaliableports{};
     };
 }

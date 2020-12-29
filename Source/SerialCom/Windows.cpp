@@ -26,7 +26,27 @@ namespace SerialConnection {
         this->data->connection = nullptr;
         isconnect = false;
         data->parameters.DCBlength = sizeof(DCB);
+
     }
+
+    std::vector<std::pair<std::string,std::string>> Serial::GetAvaliablePorts() {
+
+        char path[5000];
+        char portpath[5000]; // buffer to store the path of the COMPORTS
+
+        for (int com = 0; com < 255; com++) // checking ports from COM0 to COM255
+        {
+            std::string port = "COM" + std::to_string(com);  
+            DWORD checkport = QueryDosDevice(port.c_str(), portpath, 5000);
+
+            // Test the return value and error if any
+            if (checkport)
+                avaliableports.push_back(std::make_pair(port, portpath));
+        }
+        return avaliableports;
+
+    }
+
 
     Serial::~Serial() {
         if (isconnect)
@@ -141,7 +161,6 @@ namespace SerialConnection {
         COMSTAT stat;
         DWORD read;
 
-
         readenbyte = WaitForSingleObject(data->read.hEvent, 500);
         if (readenbyte == WAIT_TIMEOUT) {
             readenbyte = WaitForSingleObject(data->read.hEvent, 500);
@@ -172,7 +191,7 @@ namespace SerialConnection {
             return(0);
 
         }
-
+        delete z;
         return int(readenbyte);
     }
   
