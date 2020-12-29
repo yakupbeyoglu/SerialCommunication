@@ -7,8 +7,19 @@ int main(){
   SerialConnection::Serial serial;
   /*const std::string portname, const int &baudrate, const ByteSize &bytesize,
         const ConnectionMethod &method, const ParityCheck &parity, const StopBits &stopbits*/
-  serial.Connect("\\\\.\\COM3", 115200, SerialConnection::ByteSize::eight, SerialConnection::ConnectionMethod::RW,
-      SerialConnection::ParityCheck::NoParity, SerialConnection::StopBits::TwoStopBit);
+  serial.Connect(3, 115200);
+  serial.Read();
+
+  serial.Write("M105 \n");
+  serial.Read();
+  serial.Write("M106 S255 \n");
+  serial.Read();
+
+  serial.Write("G0 X50 \n");
+  serial.Read();
+
+  serial.Write("M300 \n");
+ 
   /*
   SetCommState(serialHandle, &serialParams);
   DWORD writtenbytes = 0;

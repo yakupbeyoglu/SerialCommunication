@@ -1,10 +1,11 @@
 #include "Serial.h"
 #include <Windows.h>
 #include <iostream>
+
 namespace Internal {
     struct serialdata {
         HANDLE connection;
-        DCB serialParams = { 0 };
+        DCB parameters = { 0 };
         COMMTIMEOUTS timeouts = { 0 };
         OVERLAPPED read, write;
 
@@ -20,61 +21,189 @@ namespace SerialConnection {
        void Write();
 
 */
+    /*Serial();
+        ~Serial();
 
-    Serial::Serial() {
-        data = new Internal::serialdata;
+       bool Connect(const std::string portname, const unsigned long  baudrate, const ByteSize &ByteSize,
+                    const ConnectionMethod &method, const ParityCheck &parity, const StopBits &stopbits);
+       bool Connect(const int &portnumber,const int &baud);
+       void DisConnect();
 
+       void Read();
+       void Write();
+       bool IsConnect()const;
+*/
+
+    Serial::Serial(const ByteSize &size, const ConnectionMethod &method,
+        const ParityCheck&parity, const StopBits stopbit) :
+        bytesize(size), connectionmethod(method), parity(parity), stopbits(stopbit) {
+
+        // memory allocation of read , write handler events
+        this->data = new Internal::serialdata;
         memset(&data->read, 0, sizeof(OVERLAPPED));
         memset(&data->write, 0, sizeof(OVERLAPPED));
-        data->serialParams.DCBlength = sizeof(DCB);
-
-    }
-    bool Serial::Connect(const std::string portname, const unsigned long  baudrate, const ByteSize &bytesize,
-        const ConnectionMethod &method, const ParityCheck &parity, const StopBits &stopbits) {
- 
-      //  data->serialParams.fBinary = true;
-        data->serialParams.BaudRate = baudrate;
-        data->serialParams.ByteSize = int(bytesize);
-        data->serialParams.StopBits = (stopbits == StopBits::OneStopBit) ?ONESTOPBIT : TWOSTOPBITS;
-
-        data->serialParams.Parity = (parity == ParityCheck::Even) ? EVENPARITY :
-            (parity == ParityCheck::Odd) ? ODDPARITY : NOPARITY;
-
-      auto  connectionmethod = (method == ConnectionMethod::R) ? GENERIC_READ :
-            (method == ConnectionMethod::RW) ?
-            GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE;
-      fullportpath = portname;
-     data->connection = CreateFile(fullportpath.c_str(), connectionmethod, 0, NULL, OPEN_EXISTING, 
-                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-     auto status = GetCommState(data->connection, &data->serialParams);
-
-     if (data->connection == INVALID_HANDLE_VALUE) {
-         std::cout << "Can not connect your slot";
-         return false;
-     }
-     data->write.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-     data->timeouts.ReadIntervalTimeout = 50; // in milliseconds
-     data->timeouts.ReadTotalTimeoutConstant = 50; // in milliseconds
-     data->timeouts.ReadTotalTimeoutMultiplier = 50; // in milliseconds
-     data->timeouts.WriteTotalTimeoutConstant = 0; // in milliseconds
-     data->timeouts.WriteTotalTimeoutMultiplier = 5000; // in milliseconds
-     SetCommTimeouts(data->connection, &data->timeouts);
- 
-     std::cout << "Successfully connected";
-    status = SetCommState(data->connection, &data->serialParams);
-    
-
-     const char *test = "N10 G0 X20*22";
-
-     unsigned long written = 0;
-     status = WriteFile(data->connection, &test, sizeof(test), &written, NULL);
-
+        this->data->connection = nullptr;
+        isconnect = false;
+        data->parameters.DCBlength = sizeof(DCB);
     }
 
     Serial::~Serial() {
-        CloseHandle(data->connection);
+        if (isconnect)
+            DisConnect();
         delete data;
     }
+
+    bool Serial::Connect(const int &portnumber, const int &baudrate) {
+
+        if (isconnect)
+            return true;
+        std::string port = "COM";
+        port.append(std::to_string(portnumber));
+        std::cout << "connected port = " << port;
+        auto  connectmethod = (connectionmethod == ConnectionMethod::R) ? GENERIC_READ :
+            (connectionmethod == ConnectionMethod::W) ?
+            GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE;
+
+        data->connection = CreateFile(port.c_str(), connectmethod, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+   
+        
+        if (data->connection == nullptr) {
+            std::cout << "Warning :" << port << " can not found!" << std::endl;
+            return false;
+        }
+        // refresh each connect
+        memset(&data->read, 0, sizeof(OVERLAPPED));
+        memset(&data->write, 0, sizeof(OVERLAPPED));
+
+        data->timeouts.ReadIntervalTimeout = 50; // in milliseconds
+        data->timeouts.ReadTotalTimeoutConstant = 50; // in milliseconds
+        data->timeouts.ReadTotalTimeoutMultiplier = 50; // in milliseconds
+        data->timeouts.WriteTotalTimeoutConstant = 100; // in milliseconds
+        data->timeouts.WriteTotalTimeoutMultiplier = 5000; // in milliseconds
+        
+        SetCommTimeouts(data->connection, &data->timeouts);
+        
+        // Event creation for readand write
+        data->read.hEvent = CreateEvent(NULL, true, false, NULL);
+        data->write.hEvent = CreateEvent(NULL, true, false, NULL);
+
+        data->parameters.DCBlength = sizeof(DCB);
+        data->parameters.BaudRate = baudrate;
+        data->parameters.ByteSize = int(bytesize);
+       // data->parameters.StopBits = (stopbits == StopBits::OneStopBit) ? ONESTOPBIT : TWOSTOPBITS;
+        data->parameters.StopBits = ONESTOPBIT;
+        data->parameters.Parity = (parity == ParityCheck::Even) ? EVENPARITY :
+            (parity == ParityCheck::Odd) ? ODDPARITY : NOPARITY;
+        data->parameters.fBinary = true;
+          data->parameters.fOutxCtsFlow = false;
+          data->parameters.fOutxDsrFlow = false;
+       data->parameters.fDsrSensitivity = false;
+          data->parameters.fRtsControl = RTS_CONTROL_ENABLE;
+          data->parameters.fDtrControl = DTR_CONTROL_ENABLE;
+
+        if (!SetCommState(data->connection, &data->parameters)) {
+            std::cout << "Warning :" << port << " connection not established!" << std::endl;
+
+            if (data->read.hEvent != NULL)
+                CloseHandle(data->read.hEvent);
+            if (data->write.hEvent != NULL)
+                CloseHandle(data->write.hEvent);
+
+            return false;
+        }
+
+        isconnect = true;
+        return isconnect;
+    }
+
+
+    bool Serial::DisConnect() {
+        if (!isconnect || data->connection == NULL)
+            return true;
+
+        if (data->read.hEvent != NULL)
+            CloseHandle(data->read.hEvent);
+        
+        if (data->write.hEvent != NULL)
+            CloseHandle(data->write.hEvent);
+
+        CloseHandle(data->connection);
+        isconnect = false;
+        return true;
+     }
+
+    int Serial::Write(const std::string &text) {
+
+        if (!isconnect || data->connection == NULL)
+            return 0;
+        DWORD writtenbyte;
+        bool status = WriteFile(data->connection, LPSTR(text.c_str()), text.length(), &writtenbyte, &data->write);
+        // below handle sync. problem
+        if (!status && GetLastError() == ERROR_IO_PENDING) {
+            if (WaitForSingleObject(data->write.hEvent, 1000))
+                writtenbyte = 0;
+            else {
+                GetOverlappedResult(data->connection, &data->write, &writtenbyte, false);
+                data->write.Offset += writtenbyte;
+
+            }
+
+
+        }
+        return int(writtenbyte);
+    }
+
+    int Serial::Read() {
+
+        if (!isconnect)
+            return  0;
+        bool status;
+        DWORD readenbyte, errors;
+        COMSTAT stat;
+        // clen buffer if has en error to read again!
+        readenbyte = WaitForSingleObject(data->read.hEvent, 500);
+        if (readenbyte == WAIT_TIMEOUT) {
+           
+            readenbyte = WaitForSingleObject(data->read.hEvent, 500);
+
+        }
+        ClearCommError(data->connection, &errors, &stat);
+        //status = WaitCommEvent(data->connection, &errors, );
+
+        // check the n.o byte reciverd from the serial provider , if 0 return!
+        if (!stat.cbInQue)
+            return 0;
+        // how many byte can be readeable ?
+        readenbyte = (DWORD)stat.cbInQue;
+        auto Read_Status = SetCommMask(data->connection, EV_RXCHAR);
+        char *z = new char[readenbyte];
+        std::cout << "size = " << sizeof(*z);
+        //status = ReadFile(data->connection, &z, 1, &readenbyte, NULL);
+       DWORD read;
+       
+       status = ReadFile(data->connection, z, readenbyte, &read, &data->read);
+          
+       std::cout << z << std::endl;
+        
+
+
+
+
+
+
+        if (!status) {
+            // below can be delete
+            if (GetLastError() == ERROR_IO_PENDING) {
+                WaitForSingleObject(data->read.hEvent, 2000);
+                return(int(readenbyte));
+            }
+            return(0);
+
+        }
+
+        return int(readenbyte);
+    }
+  
 
 
 }

@@ -35,26 +35,28 @@ namespace SerialConnection {
 
     class Serial {
     public:
-        Serial();
+        Serial(const ByteSize &size = ByteSize::eight,const ConnectionMethod &method = ConnectionMethod::RW,
+            const ParityCheck&parity = ParityCheck::NoParity, const StopBits stopbit = StopBits::TwoStopBit);
         ~Serial();
 
-       bool Connect(const std::string portname, const unsigned long  baudrate, const ByteSize &ByteSize,
-                    const ConnectionMethod &method, const ParityCheck &parity, const StopBits &stopbits);
-       bool Connect();
-       void DisConnect();
-       void Read();
-       void Write();
+       bool Connect(const int &portnumber,const int &baudrate);
+       bool DisConnect();
 
+       int Read();
+       int Write(const std::string &text);
+       bool IsConnect()const;
 
 
     private:
         Internal::serialdata *data;
         SerialConnection::ByteSize bytesize;
         SerialConnection::ConnectionMethod connectionmethod;
-        SerialConnection::ParityCheck prcheck;
+        SerialConnection::ParityCheck parity;
         SerialConnection::StopBits stopbits;
-        bool connected = false;
+        bool isconnect = false;
         std::string portname;
         std::string fullportpath;
+        // read , write  or RW
+        ConnectionMethod connectmethod;
     };
 }
