@@ -41,6 +41,7 @@ namespace SerialConnection {
         ~Serial();
 
        bool Connect(const int &portnumber,const int &baudrate);
+       bool Connect(const std::string portname, const int &baudrate);
        bool DisConnect();
 
        int Read();
@@ -52,11 +53,22 @@ namespace SerialConnection {
                DisConnect();
                Connect(portnumber, baudrate);
            }
+       }
+
+       void SetPort(const std::string &portname, const int baudrate) {
+         if(isconnect){
+             DisConnect();
+             Connect(portname,baudrate);
+           }
 
        }
 
+
+
     private:
-        Internal::serialdata *data;
+       bool OpenPort(std::string portname);
+       bool ConfigurePort();
+       Internal::serialdata *data;
         SerialConnection::ByteSize bytesize;
         SerialConnection::ConnectionMethod connectionmethod;
         SerialConnection::ParityCheck parity;

@@ -9,7 +9,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_SOURCE_DIR}/Bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/Bin)
 add_compile_options(-std=c++14)
 
-add_executable(SerialCommunication Source/Main.cpp
+set( MAIN
+    Source/Main.cpp)
+
+if (WIN32)
+    set (OSFILE
+         Source/SerialCom/Windows.cpp
+         )
+else ()
+    set (OSFILE
+        Source/SerialCom/Linux.cpp
+        )
+endif()
+
+add_executable(SerialCommunication ${MAIN}
                                    Source/SerialCom/Serial.h
-                                   Source/SerialCom/Windows.cpp
-								   Source/SerialCom/Linux.cpp)
+                                   ${OSFILE}
+)
