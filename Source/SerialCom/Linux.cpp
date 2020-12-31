@@ -66,7 +66,7 @@ std::cout<<"Created"<<std::endl;
    return true;
  }
 
- bool Serial::ConfigurePort(){
+ bool Serial::ConfigPort(){
    if(tcgetattr(data->conection, &data->parameters) == 1 ) {
         std::cout<<"Set default has error"<<std::endl;
 
@@ -96,7 +96,7 @@ std::cout<<"Created"<<std::endl;
        }
 
 
-      if(!ConfigurePort())
+      if(!ConfigPort())
         return false;
       isconnect = true;
 
@@ -115,7 +115,7 @@ std::cout<<"Created"<<std::endl;
   if(!OpenPort(portpath))
     return false;
 
-  if(!ConfigurePort())
+  if(!ConfigPort())
     return false;
   isconnect = true;
   return true;

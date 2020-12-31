@@ -29,6 +29,9 @@ namespace SerialConnection {
 
     }
 
+    bool Serial::IsConnect()const {
+        return isconnect;
+    }
     std::vector<std::pair<std::string,std::string>> Serial::GetAvaliablePorts() {
 
         char path[5000];
@@ -53,26 +56,8 @@ namespace SerialConnection {
             DisConnect();
         delete data;
     }
+    bool Serial::ConfigPort() {
 
-    bool Serial::Connect(const int &portnumber, const int &baudrate) {
-
-        if (isconnect)
-            return true;
-        std::string port = "COM";
-        port.append(std::to_string(portnumber));
-        std::cout << "connected port = " << port;
-        auto  connectmethod = (connectionmethod == ConnectionMethod::R) ? GENERIC_READ :
-            (connectionmethod == ConnectionMethod::W) ?
-            GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE;
-
-        data->connection = CreateFile(port.c_str(), connectmethod, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-   
-        
-        if (data->connection == nullptr) {
-            std::cout << "Warning :" << port << " can not found!" << std::endl;
-            return false;
-        }
-        // refresh each connect
         memset(&data->read, 0, sizeof(OVERLAPPED));
         memset(&data->write, 0, sizeof(OVERLAPPED));
 
@@ -81,27 +66,101 @@ namespace SerialConnection {
         data->timeouts.ReadTotalTimeoutMultiplier = 50; // in milliseconds
         data->timeouts.WriteTotalTimeoutConstant = 100; // in milliseconds
         data->timeouts.WriteTotalTimeoutMultiplier = 5000; // in milliseconds
-        
+
         SetCommTimeouts(data->connection, &data->timeouts);
-        
+
         // Event creation for readand write
         data->read.hEvent = CreateEvent(NULL, true, false, NULL);
         data->write.hEvent = CreateEvent(NULL, true, false, NULL);
 
         data->parameters.DCBlength = sizeof(DCB);
-        data->parameters.BaudRate = baudrate;
+
         data->parameters.ByteSize = int(bytesize);
         data->parameters.StopBits = (stopbits == StopBits::OneStopBit) ? ONESTOPBIT : TWOSTOPBITS;
         data->parameters.Parity = (parity == ParityCheck::Even) ? EVENPARITY :
-                                (parity == ParityCheck::Odd) ? ODDPARITY : NOPARITY;
+            (parity == ParityCheck::Odd) ? ODDPARITY : NOPARITY;
         // in windows must be daya in binary
-          data->parameters.fBinary = true;
-          data->parameters.fOutxCtsFlow = false;
-          data->parameters.fOutxDsrFlow = false;
-          data->parameters.fDsrSensitivity = false;
-          // rts and dtr pins enable to communicate
-          data->parameters.fRtsControl = RTS_CONTROL_ENABLE;
-          data->parameters.fDtrControl = DTR_CONTROL_ENABLE;
+        data->parameters.fBinary = true;
+        data->parameters.fOutxCtsFlow = false;
+        data->parameters.fOutxDsrFlow = false;
+        data->parameters.fDsrSensitivity = false;
+        // rts and dtr pins enable to communicate
+        data->parameters.fRtsControl = RTS_CONTROL_ENABLE;
+        data->parameters.fDtrControl = DTR_CONTROL_ENABLE;
+        return true;
+
+
+    }
+
+    bool Serial::OpenPort(std::string &portname) {
+
+        auto  connectmethod = (connectionmethod == ConnectionMethod::R) ? GENERIC_READ :
+            (connectionmethod == ConnectionMethod::W) ?
+            GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE;
+
+        data->connection = CreateFile(portname.c_str(), connectmethod, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+
+
+        if (data->connection == nullptr) {
+            std::cout << "Warning :" << portname << " can not found!" << std::endl;
+            return false;
+
+        }
+        return true;
+    }
+
+    bool Serial::Connect(const std::string &portname, const int &baudrate) {
+
+
+        if (isconnect)
+            return true;
+        std::string port = portname;
+        
+        // refresh each connect
+        if (!ConfigPort())
+            return false;
+
+        data->parameters.BaudRate = baudrate;
+
+        if (!OpenPort(port))
+            return false;
+
+
+        if (!SetCommState(data->connection, &data->parameters)) {
+            std::cout << "Warning :" << port << " connection not established!" << std::endl;
+
+            if (data->read.hEvent != NULL)
+                CloseHandle(data->read.hEvent);
+            if (data->write.hEvent != NULL)
+                CloseHandle(data->write.hEvent);
+
+            return false;
+        }
+
+        isconnect = true;
+        return isconnect;
+    }
+
+    bool Serial::Connect(const int &portnumber, const int &baudrate) {
+
+        if (isconnect) {
+            std::cout << "You can not open port, already have" << std::endl;
+            return true;
+        }
+
+        std::string port = "COM";
+        port.append(std::to_string(portnumber));
+
+        if (!OpenPort(port))
+            return false;
+
+        // refresh each connect
+        if (!ConfigPort())
+            return false;
+
+        data->parameters.BaudRate = baudrate;
+        
 
         if (!SetCommState(data->connection, &data->parameters)) {
             std::cout << "Warning :" << port << " connection not established!" << std::endl;
@@ -173,15 +232,14 @@ namespace SerialConnection {
             return 0;
         // how many byte can be readeable ?
         readenbyte = (DWORD)stat.cbInQue;
-        char *z = new char[readenbyte];
+        char *buffer = new char[readenbyte];
       
        
-       status = ReadFile(data->connection, z, readenbyte, &read, &data->read);
+       status = ReadFile(data->connection, buffer, readenbyte, &read, &data->read);
   
-       std::cout << z << std::endl;
-       std::string a = z;
-       if(a.find("ok") != std::string::npos)
-           return 10;
+       std::cout << buffer << std::endl;
+      
+
         if (!status) {
             // below can be delete
             if (GetLastError() == ERROR_IO_PENDING) {
@@ -191,7 +249,7 @@ namespace SerialConnection {
             return(0);
 
         }
-        delete z;
+        delete buffer;
         return int(readenbyte);
     }
   

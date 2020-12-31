@@ -41,7 +41,7 @@ namespace SerialConnection {
         ~Serial();
 
        bool Connect(const int &portnumber,const int &baudrate);
-       bool Connect(const std::string portname, const int &baudrate);
+       bool Connect(const std::string &portname, const int &baudrate);
        bool DisConnect();
 
        int Read();
@@ -66,8 +66,8 @@ namespace SerialConnection {
 
 
     private:
-       bool OpenPort(std::string portname);
-       bool ConfigurePort();
+       bool OpenPort(std::string &portname);
+       bool ConfigPort();
        Internal::serialdata *data;
         SerialConnection::ByteSize bytesize;
         SerialConnection::ConnectionMethod connectionmethod;

@@ -4,13 +4,13 @@
 int main(){
 	std::cout<<"hello cmake test"<<std::endl;
 	SerialConnection::Serial serial;
-	serial.Connect("ttyUSB0",115200);
+	serial.Connect(3,115200);
 	serial.Read();
-	serial.Write("G0 X20\n");
+	serial.Write("G0 X20 \n");
 	serial.Read();
-	serial.Write("M106 S255\n");
+	serial.Write("M106 S255 \n");
 	serial.Read();
-	serial.Write("M105\n");
+	serial.Write("M105 \n");
 	serial.Read();
 
 
