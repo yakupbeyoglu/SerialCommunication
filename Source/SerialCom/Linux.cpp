@@ -37,7 +37,7 @@ namespace SerialConnection {
                    data->parameters.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
                    data->parameters.c_cflag &= ~(CSIZE | PARENB);
 
-                   data->parameters.c_cc[VTIME] = 10;    // Wait for up to 1s (10 deciseconds), returning as soon as any data is received.
+                   data->parameters.c_cc[VTIME] = 10;
                    data->parameters.c_cc[VMIN] = 0;
 
 
