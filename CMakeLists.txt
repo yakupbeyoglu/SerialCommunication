@@ -25,4 +25,6 @@ endif()
 add_executable(SerialCommunication ${MAIN}
                                    Source/SerialCom/Serial.h
                                    ${OSFILE}
+                                   Source/SerialCom/Host.h
+                                   Source/SerialCom/Host.cpp
 )

@@ -1,7 +1,7 @@
 #include "Serial.h"
 #include <Windows.h>
 #include <iostream>
-
+std::vector<std::string> test;
 namespace Internal {
     struct serialdata {
         HANDLE connection;
@@ -13,7 +13,7 @@ namespace Internal {
 }
 
 namespace SerialConnection {
-
+    
 
     Serial::Serial(const ByteSize &size, const ConnectionMethod &method,
         const ParityCheck&parity, const StopBits stopbit) :
@@ -26,6 +26,7 @@ namespace SerialConnection {
         this->data->connection = nullptr;
         isconnect = false;
         data->parameters.DCBlength = sizeof(DCB);
+
 
     }
 
@@ -211,7 +212,7 @@ namespace SerialConnection {
         return int(writtenbyte);
     }
 
-    int Serial::Read() {
+   std::string Serial::Read() {
 
         if (!isconnect)
             return  0;
@@ -229,7 +230,7 @@ namespace SerialConnection {
 
         // check the n.o byte reciverd from the serial provider , if 0 return!
         if (!stat.cbInQue)
-            return 0;
+            return "";
         // how many byte can be readeable ?
         readenbyte = (DWORD)stat.cbInQue;
         char *buffer = new char[readenbyte];
@@ -237,22 +238,33 @@ namespace SerialConnection {
        
        status = ReadFile(data->connection, buffer, readenbyte, &read, &data->read);
   
-       std::cout << buffer << std::endl;
+      // std::cout << buffer << std::endl;
       
 
         if (!status) {
             // below can be delete
             if (GetLastError() == ERROR_IO_PENDING) {
                 WaitForSingleObject(data->read.hEvent, 2000);
-                return(int(readenbyte));
+                return "";
             }
             return(0);
 
         }
+       
+        std::string target = std::string(buffer);
         delete buffer;
-        return int(readenbyte);
+        return target;
     }
   
+   bool Serial::HasIncomming()const {
+       COMSTAT stat;
+       DWORD errors;
+       ClearCommError(data->connection, &errors, &stat);
+       if (stat.cbInQue > 0)
+           return true;
+       return false;
+   }
+
 
 
 }

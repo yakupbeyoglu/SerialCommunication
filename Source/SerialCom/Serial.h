@@ -43,8 +43,8 @@ namespace SerialConnection {
        bool Connect(const int &portnumber,const int &baudrate);
        bool Connect(const std::string &portname, const int &baudrate);
        bool DisConnect();
-
-       int Read();
+       bool HasIncomming()const;
+       std::string Read();
        int Write(const std::string &text);
        bool IsConnect()const;
        std::vector<std::pair<std::string,std::string>> GetAvaliablePorts();
