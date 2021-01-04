@@ -56,18 +56,16 @@ public:
             code = data;
             
 
-            hasread = true;
-            sync.notify_all();
+           // hasread = true;
+           // sync.notify_all();
 
             sync.wait(managelock, [&] {return haswrote; });
             std::string z = "";
             bool isvalid;
-            do {
 
+            do {
                 z = Get();
                 isvalid = Validate(z);
-
-
 
             } while (!isvalid);
             if (!z.empty()) {
@@ -89,11 +87,11 @@ public:
 
     void Read() {
         // lock read threat
-        std::unique_lock<std::mutex> readlock{ m };
+       // std::unique_lock<std::mutex> readlock{ m };
 
         while (read) {
 
-            sync.wait(readlock, [&] {return hasread; });
+        //    sync.wait(readlock, [&] {return hasread; });
      
             auto target = serial.Read();
  
@@ -106,8 +104,8 @@ public:
                 }
 
             }
-            else
-                sync.notify_all();
+           // else
+             //   sync.notify_all();
          
 
         }
@@ -136,11 +134,12 @@ public:
 
      std::string Get() {
          //std::unique_lock<std::mutex> lock{ m };
-         std::string last = "";
-         if (queue.size() > 0)
-             last = queue.back();
-         if (!queue.empty())
-             queue.pop_back();
+         std::string last;
+         if (queue.size() > 0) {
+             last = queue.front();
+             queue.erase(queue.begin());
+         }
+       
          return last;
             
      }

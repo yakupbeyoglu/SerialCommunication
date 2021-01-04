@@ -7,10 +7,7 @@ int main(){
 	std::cout<<"hello cmake test"<<std::endl;
 
   Host host;
- // auto writethread = host.writing();
-
-//  auto readthread = host.reading();
-
+ 
 
 
   host.QueueManager("M105\n");
