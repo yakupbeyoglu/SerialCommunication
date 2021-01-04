@@ -23,6 +23,7 @@ int main(){
   host.QueueManager("M106 S255\n");
   host.QueueManager("G0 Z10\n");
   host.QueueManager("G0 Y0\n");
+  host.QueueManager("G0 X50\n");
 
 
   host.Stop();

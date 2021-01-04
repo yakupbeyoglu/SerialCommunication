@@ -34,8 +34,10 @@ public:
     }
 
     ~Host() {
-        readt->join();
-        writet->join();
+      
+
+        //readt->join();
+        //writet->join();
         delete readt;
         delete writet;
     }
@@ -96,17 +98,25 @@ public:
             auto target = serial.Read();
  
             if (!target.empty()) {
-                queue.push_back(target);
-                if (Validate(target)) {
-                    hasread = false;
-                    haswrote = true;
-                    sync.notify_all();
+
+                //auto z = target.find('\n');
+                lastread.append(target);
+                
+               
+                if (lastread.find('\n') != std::string::npos) {
+                   
+                    queue.push_back(lastread);
+                    if (Validate(lastread)) {
+                        hasread = false;
+                        haswrote = true;
+                        sync.notify_all();
+                    }
+                    lastread.clear();
+
                 }
 
             }
-           // else
-             //   sync.notify_all();
-         
+        
 
         }
     }
@@ -173,7 +183,7 @@ private:
     bool hasread = false, haswrite = false, haswrote = false;
     std::string code = "";
     std::thread *readt, *writet;
-
+    std::string lastread;
 
 };
 
