@@ -1,28 +1,58 @@
 #include "Serial.h"
 #include <thread>
 #include <mutex>
+
 class Host {
 public:
     Host() {
-        
         serial.Connect(3, 115200);
         read = true;
-    
+        if (serial.IsConnect()) {
+            readt = new  std::thread(&Host::Read, this);
+            writet = new  std::thread(&Host::Write, this);
+        }
      
     }
 
+    bool Connect() {
+        if (!serial.IsConnect()) {
+            serial.Connect(3, 115200);
+            read = true;
+            if (serial.IsConnect()) {
+                readt = new  std::thread(&Host::Read, this);
+                writet = new  std::thread(&Host::Write, this);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    bool Disconnect() {
+
+        Stop();
+
+    }
+
+    ~Host() {
+        readt->join();
+        writet->join();
+        delete readt;
+        delete writet;
+    }
     void Stop() {
         read = false;
         hasread = true;
         sync.notify_all();
         writesync.notify_all();
         haswrite = true;
+        readt->join();
+        writet->join();
     }
 
     void QueueManager(std::string data) {
+        // lock current threat
         std::unique_lock<std::mutex> managelock{ m };
 
-        //std::lock_guard<std::mutex> lock{ m };
             code = data;
             
 
@@ -30,15 +60,25 @@ public:
             sync.notify_all();
 
             sync.wait(managelock, [&] {return haswrote; });
+            std::string z = "";
+            bool isvalid;
+            do {
 
-            auto z = Get();
+                z = Get();
+                isvalid = Validate(z);
+
+
+
+            } while (!isvalid);
             if (!z.empty()) {
                 std::cout << "Readen :" << std::endl;
                 std::cout << z << std::endl;
+
                 haswrite = true;
                 writesync.notify_all();
 
             }
+
 
             
             sync.wait(managelock, [&] {return !haswrote; });
@@ -48,6 +88,7 @@ public:
     }
 
     void Read() {
+        // lock read threat
         std::unique_lock<std::mutex> readlock{ m };
 
         while (read) {
@@ -58,9 +99,12 @@ public:
  
             if (!target.empty()) {
                 queue.push_back(target);
-                hasread = false;
-                haswrote = true;
-                sync.notify_all();
+                if (Validate(target)) {
+                    hasread = false;
+                    haswrote = true;
+                    sync.notify_all();
+                }
+
             }
             else
                 sync.notify_all();
@@ -70,42 +114,24 @@ public:
     }
     
 
-     void Write() {
-         std::unique_lock<std::mutex> locking{ m };
+    void Write() {
+        // lock write threat
+        std::unique_lock<std::mutex> locking{ m };
 
-         while (read) {
-             writesync.wait(locking, [&] {return haswrite; });
-             std::cout << "writed code  = " << code;
-             serial.Write(code);
-             code.clear();
-             haswrite = false;
-             haswrote = false;
+        while (read) {
+            writesync.wait(locking, [&] {return haswrite; });
+            std::cout << "writed code  = " << code;
+            serial.Write(code);
+            code.clear();
+            haswrite = false;
+            haswrote = false;
             // locking.unlock();
-             sync.notify_all();
-         }
-       /*  do {
-
-             z = Get();
-             if (!z.empty()) {
-                 std::cout << z;
-                 serial.Write(gcode);
-
-             }
-         } while (z.empty());*/
-     }
-
-     //std::thread workloop() {
-   //      return std::thread(&Host::QueueManager, this);
-     //}
+            sync.notify_all();
+        }
+    }
     
-     std::thread reading() {
-         return std::thread(&Host::Read, this);
-     }
 
-     std::thread writing() {
-         return std::thread(&Host::Write, this);
-         
-     }
+
 
 
      std::string Get() {
@@ -119,17 +145,35 @@ public:
             
      }
 
+     bool Validate(const std::string &txt) {
+        
+         if (txt.find("ok") != std::string::npos) 
+             return true;
+         
+
+         return false;
+     }
+
 
 private:
+
+    std::thread reading() {
+        return std::thread(&Host::Read, this);
+    }
+
+    std::thread writing() {
+        return std::thread(&Host::Write, this);
+
+    }
+
     bool read = false;
     SerialConnection::Serial serial;
     std::vector<std::string> queue;
     std::mutex m, n;
-  //  std::thread workt,writet,readt;
-    // sync each thread with notify
     std::condition_variable sync, writesync;
     bool hasread = false, haswrite = false, haswrote = false;
     std::string code = "";
+    std::thread *readt, *writet;
 
 
 };
