@@ -212,49 +212,55 @@ namespace SerialConnection {
         return int(writtenbyte);
     }
 
-   std::string Serial::Read() {
+    std::string Serial::Read() {
 
         if (!isconnect)
-            return  0;
+            return  "";
+
         bool status;
-        DWORD readenbyte, errors;
+        DWORD available, errors;
         COMSTAT stat;
         DWORD read;
-
-        readenbyte = WaitForSingleObject(data->read.hEvent, 500);
-        if (readenbyte == WAIT_TIMEOUT) {
-            readenbyte = WaitForSingleObject(data->read.hEvent, 500);
+        available = WaitForSingleObject(data->read.hEvent, 500);
+        if (available == WAIT_TIMEOUT) {
+            available = WaitForSingleObject(data->read.hEvent, 500);
+            //while (available != WAIT_TIMEOUT) {
+                //available = WaitForSingleObject(data->read.hEvent, 500);
         }
         ClearCommError(data->connection, &errors, &stat);
+
+        if (!isconnect)
+            return  "";
+        //}
         //status = WaitCommEvent(data->connection, &errors, );
 
         // check the n.o byte reciverd from the serial provider , if 0 return!
         if (!stat.cbInQue)
             return "";
+
         // how many byte can be readeable ?
-        readenbyte = (DWORD)stat.cbInQue;
-        char *buffer = new char[readenbyte];
-      
-       
-       status = ReadFile(data->connection, buffer, readenbyte, &read, &data->read);
-  
-      // std::cout << buffer << std::endl;
-      
+        available = (DWORD)stat.cbInQue;
+        std::string target(available, '\0');
+
+
+        status = ReadFile(data->connection, &target[0], available, &read, &data->read);
+
+        // std::cout << buffer << std::endl;
+
 
         if (!status) {
-            // below can be delete
             if (GetLastError() == ERROR_IO_PENDING) {
                 WaitForSingleObject(data->read.hEvent, 2000);
-                return "";
             }
-            return(0);
-
         }
-       
-        std::string target = std::string(buffer);
-        delete buffer;
-        return target;
+
+        target.resize(read);
+        auto z = target;
+        target.clear();
+        return z;
     }
+    
+    
   
    bool Serial::HasIncomming()const {
        COMSTAT stat;

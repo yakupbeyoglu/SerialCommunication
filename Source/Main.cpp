@@ -9,9 +9,10 @@ int main(){
   Host host;
  
 
-
-  host.QueueManager("M105\n");
+  host.QueueManager("G0 Y10\n");
+  host.QueueManager("G0 X10\n");
   host.QueueManager("M106 S255\n");
+  host.QueueManager("M105\n");
   host.QueueManager("G0 Z10\n");
 
   host.QueueManager("G0 Y10\n");
@@ -24,6 +25,8 @@ int main(){
   host.QueueManager("G0 Z10\n");
   host.QueueManager("G0 Y0\n");
   host.QueueManager("G0 X50\n");
+
+
 
 
   host.Stop();

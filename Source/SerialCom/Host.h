@@ -5,12 +5,7 @@
 class Host {
 public:
     Host() {
-        serial.Connect(3, 115200);
-        read = true;
-        if (serial.IsConnect()) {
-            readt = new  std::thread(&Host::Read, this);
-            writet = new  std::thread(&Host::Write, this);
-        }
+        Connect();
      
     }
 
@@ -19,8 +14,8 @@ public:
             serial.Connect(3, 115200);
             read = true;
             if (serial.IsConnect()) {
-                readt = new  std::thread(&Host::Read, this);
-                writet = new  std::thread(&Host::Write, this);
+                readt = std::thread(&Host::Read, this);
+                writet = std::thread(&Host::Write, this);
             }
             return true;
         }
@@ -38,8 +33,7 @@ public:
 
         //readt->join();
         //writet->join();
-        delete readt;
-        delete writet;
+       
     }
     void Stop() {
         read = false;
@@ -47,8 +41,8 @@ public:
         sync.notify_all();
         writesync.notify_all();
         haswrite = true;
-        readt->join();
-        writet->join();
+        readt.join();
+        writet.join();
     }
 
     void QueueManager(std::string data) {
@@ -182,7 +176,7 @@ private:
     std::condition_variable sync, writesync;
     bool hasread = false, haswrite = false, haswrote = false;
     std::string code = "";
-    std::thread *readt, *writet;
+    std::thread readt, writet;
     std::string lastread;
 
 };
