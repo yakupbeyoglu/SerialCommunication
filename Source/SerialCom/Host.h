@@ -33,10 +33,9 @@ public:
     }
 
     ~Host() {
-      
-
-        //readt->join();
-        //writet->join();
+             
+        if (read)
+            Stop();
        
     }
     void Stop() {
@@ -50,19 +49,32 @@ public:
 
     
 
+    void FunctionsManager() {
+        lastfunction++;
+        if (lastfunction > functions.size() - 1)
+            lastfunction = 0;
+
+
+
+    }
     std::string  Request() {
-       
+        FunctionsManager();
         std::string value;
-        for (auto &function : functions) {
-             value = function();
-            if (!value.empty())
-            {
-                return value;
-            }
-        }
 
-      //  &functions.back().operator();
 
+
+        do {
+            if (lastfunction >=functions.size())
+                lastfunction = 0;
+            
+            value = functions[lastfunction]();
+            lastfunction++;
+            
+        } while (value.empty());
+        lastfunction++;
+        return value;
+    
+       
         return "";
 
     }
@@ -101,6 +113,40 @@ public:
     }
 
 
+    void Parser(std::string &last) {
+        bool isok = false;
+        std::string value;
+        for (auto &n : last) {
+          
+            if (isspace(n)) {
+
+                if (value.find("ok") != std::string::npos) {
+                    isok = true;
+                    value.clear();
+                }
+
+                if (value.find("T:") != std::string::npos  && isok) {
+                    value.erase(value.find("T:"), 2);
+                    std::cout << "Nozzle = " << value;
+                }
+                if (value.find("B:") != std::string::npos && isok) {
+                    value.erase(value.find("B:"), 2);
+                    std::cout << "Bed = " << value << std::endl;
+                }
+                value.clear();
+            }
+            
+                value.push_back(n);
+
+
+
+
+
+        }
+
+
+    }
+
 
     void Read() {
         
@@ -115,8 +161,9 @@ public:
                 lastread.append(target);
                 
                
-                if (lastread.find("ok\n") != std::string::npos) {
+                if (lastread.find("ok") != std::string::npos && lastread.find("\n") != std::string::npos) {
                     queue.push_back(lastread);
+                    Parser(lastread);
                     hasread = true;
                     sync.notify_all();
                     lastread.clear();
@@ -187,6 +234,7 @@ private:
     std::string lastread;
     bool canwrite = true;
     std::vector<std::function<std::string()>> functions;
+    int lastfunction = -1;
 
 
 };
