@@ -9,13 +9,17 @@ public:
      
     }
 
+    void Register(const std::function<std::string()> &f1) {
+        functions.push_back(f1);
+   }
+
     bool Connect() {
         if (!serial.IsConnect()) {
             serial.Connect(3, 115200);
             read = true;
             if (serial.IsConnect()) {
                 readt = std::thread(&Host::Read, this);
-                writet = std::thread(&Host::Write, this);
+                writet = std::thread(&Host::HostManager, this);
             }
             return true;
         }
@@ -36,7 +40,7 @@ public:
        
     }
     void Stop() {
-        read = false;
+       // read = false;
         hasread = true;
         sync.notify_all();
         writesync.notify_all();
@@ -45,45 +49,70 @@ public:
         writet.join();
     }
 
-    void QueueManager(std::string data) {
-        // lock current threat
-        std::unique_lock<std::mutex> managelock{ m };
+    
 
-            code = data;
-            
-
-           // hasread = true;
-           // sync.notify_all();
-
-            sync.wait(managelock, [&] {return haswrote; });
-            std::string z = "";
-            bool isvalid;
-
-            do {
-                z = Get();
-                isvalid = Validate(z);
-
-            } while (!isvalid);
-            if (!z.empty()) {
-                std::cout << "Readen :" << std::endl;
-                std::cout << z << std::endl;
-
-                haswrite = true;
-                writesync.notify_all();
-
+    std::string  Request() {
+       
+        std::string value;
+        for (auto &function : functions) {
+             value = function();
+            if (!value.empty())
+            {
+                return value;
             }
+        }
 
+      //  &functions.back().operator();
 
-            
-            sync.wait(managelock, [&] {return !haswrote; });
-
-
+        return "";
 
     }
 
+    void HostManager() {
+        // lock current threat
+        std::unique_lock<std::mutex> managelock{ m };
+
+
+        while (read) {
+            // hasread = true;
+            // sync.notify_all();
+
+            sync.wait(managelock, [&] {return hasread; });
+            std::string z = "";
+            bool isvalid;
+
+            if (!queue.empty()) {
+                z = Get();
+                isvalid = Validate(z);
+                if (isvalid) {
+                    auto code = Request();
+                    if(!code.empty())
+                        Write(code);
+                   // below can work for resend
+                   // sync.wait(managelock, [&] {return haswrote; });
+                    //haswrote = false;
+                }
+            }
+
+            sync.notify_all();
+
+
+
+
+        }
+
+    }
+
+            
+          //  sync.wait(managelock, [&] {return !haswrote; });
+
+
+
+    
+
     void Read() {
         // lock read threat
-       // std::unique_lock<std::mutex> readlock{ m };
+     //  std::unique_lock<std::mutex> readlock{ m };
 
         while (read) {
 
@@ -97,16 +126,11 @@ public:
                 lastread.append(target);
                 
                
-                if (lastread.find('\n') != std::string::npos) {
-                   
+                if (lastread.find("ok\n") != std::string::npos) {
                     queue.push_back(lastread);
-                    if (Validate(lastread)) {
-                        hasread = false;
-                        haswrote = true;
-                        sync.notify_all();
-                    }
+                    hasread = true;
+                    sync.notify_all();
                     lastread.clear();
-
                 }
 
             }
@@ -116,20 +140,21 @@ public:
     }
     
 
-    void Write() {
-        // lock write threat
-        std::unique_lock<std::mutex> locking{ m };
+    void Write(const std::string text) {
+    
+        std::unique_lock<std::mutex> lock{ n };
+        int writebyte;
+        if (!text.empty()) {
+            if (text == "M0\n") {
+                std::cout << "m0 geldi" << std::endl;
 
-        while (read) {
-            writesync.wait(locking, [&] {return haswrite; });
-            std::cout << "writed code  = " << code;
-            serial.Write(code);
-            code.clear();
-            haswrite = false;
-            haswrote = false;
-            // locking.unlock();
-            sync.notify_all();
+            }
+            serial.Write(text);
+            std::cout << "writed code  = " << text;
         }
+    
+
+      //  }
     }
     
 
@@ -137,11 +162,12 @@ public:
 
 
      std::string Get() {
-         //std::unique_lock<std::mutex> lock{ m };
+         std::unique_lock<std::mutex> lock{ n };
          std::string last;
          if (queue.size() > 0) {
+             std::cout << queue.front() << std::endl;
              last = queue.front();
-             queue.erase(queue.begin());
+            queue.erase(queue.begin());
          }
        
          return last;
@@ -160,24 +186,22 @@ public:
 
 private:
 
-    std::thread reading() {
-        return std::thread(&Host::Read, this);
-    }
 
-    std::thread writing() {
-        return std::thread(&Host::Write, this);
-
-    }
 
     bool read = false;
     SerialConnection::Serial serial;
     std::vector<std::string> queue;
+    std::vector<std::string> writequeue;
     std::mutex m, n;
     std::condition_variable sync, writesync;
     bool hasread = false, haswrite = false, haswrote = false;
     std::string code = "";
     std::thread readt, writet;
     std::string lastread;
+    bool canwrite = true;
+    std::vector<std::function<std::string()>> functions;
+
+    std::vector<std::string> requesttest = {"G0 X20\n","G0 Y10\n","M106 S255\n","G0 Z10\n","M106 S0\n","G0 Y0\n" ,"G28\n", "M0\n" };
 
 };
 
