@@ -40,13 +40,12 @@ public:
        
     }
     void Stop() {
-       // read = false;
-        hasread = true;
-        sync.notify_all();
-        writesync.notify_all();
-        haswrite = true;
-        readt.join();
+        read = false;
+        hasread = false;
+       // sync.notify_all();
         writet.join();
+
+        readt.join();
     }
 
     
@@ -88,9 +87,7 @@ public:
                     auto code = Request();
                     if(!code.empty())
                         Write(code);
-                   // below can work for resend
-                   // sync.wait(managelock, [&] {return haswrote; });
-                    //haswrote = false;
+                    hasread = false;
                 }
             }
 
@@ -103,20 +100,12 @@ public:
 
     }
 
-            
-          //  sync.wait(managelock, [&] {return !haswrote; });
 
-
-
-    
 
     void Read() {
-        // lock read threat
-     //  std::unique_lock<std::mutex> readlock{ m };
-
+        
         while (read) {
 
-        //    sync.wait(readlock, [&] {return hasread; });
      
             auto target = serial.Read();
  
@@ -191,17 +180,14 @@ private:
     bool read = false;
     SerialConnection::Serial serial;
     std::vector<std::string> queue;
-    std::vector<std::string> writequeue;
     std::mutex m, n;
-    std::condition_variable sync, writesync;
-    bool hasread = false, haswrite = false, haswrote = false;
-    std::string code = "";
+    std::condition_variable sync;
+    bool hasread = false;
     std::thread readt, writet;
     std::string lastread;
     bool canwrite = true;
     std::vector<std::function<std::string()>> functions;
 
-    std::vector<std::string> requesttest = {"G0 X20\n","G0 Y10\n","M106 S255\n","G0 Z10\n","M106 S0\n","G0 Y0\n" ,"G28\n", "M0\n" };
 
 };
 
