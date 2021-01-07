@@ -2,16 +2,40 @@
 #include <thread>
 #include <mutex>
 
+struct Temperature {
+    float nozzle, bed;
+};
+
+
 class Host {
+
 public:
+
     Host() {
         Connect();
      
     }
 
-    void Register(const std::function<std::string()> &f1) {
-        functions.push_back(f1);
+    void Register(const std::function<std::string()> &f) {
+        functions.push_back(f);
    }
+
+    
+    void UnRegister(const int &index) {
+        if (index < functions.size())
+            functions.erase(functions.begin() + index);
+    }
+    
+    void UnRegisterAll() {
+        urgentfunctions.clear();
+        functions.clear();
+    }
+
+    void UrgentRegister(const std::function<std::string()> &f) {
+        hasurgent = true;
+        urgentfunctions.push_back(f);
+    }
+
 
     bool Connect() {
         if (!serial.IsConnect()) {
@@ -57,24 +81,38 @@ public:
 
 
     }
+
     std::string  Request() {
-        FunctionsManager();
-        std::string value;
+
+        std::string value="";
+
+        if (hasurgent) {
+            for (auto &urgent : urgentfunctions) {
+                value = urgent();
+                if (!value.empty())
+                    return value;
+            }
+
+        }
+
+        if (value.empty()) {
+
+            FunctionsManager();
 
 
 
-        do {
-            if (lastfunction >=functions.size())
-                lastfunction = 0;
-            
-            value = functions[lastfunction]();
+            do {
+                if (lastfunction >= functions.size())
+                    lastfunction = 0;
+
+                value = functions[lastfunction]();
+                lastfunction++;
+
+            } while (value.empty());
             lastfunction++;
-            
-        } while (value.empty());
-        lastfunction++;
-        return value;
-    
-       
+            return value;
+
+        }
         return "";
 
     }
@@ -115,32 +153,37 @@ public:
 
     void Parser(std::string &last) {
         bool isok = false;
+
         std::string value;
         for (auto &n : last) {
           
-            if (isspace(n)) {
+            if (value.find("Error:") != std::string::npos) {
+                errormessage = value;
+            }
+            else {
+                if (isspace(n)) {
 
-                if (value.find("ok") != std::string::npos) {
-                    isok = true;
+                    if (value.find("ok") != std::string::npos) {
+                        isok = true;
+                        value.clear();
+                    }
+
+                    if (value.find("T:") != std::string::npos  && isok) {
+                        value.erase(value.find("T:"), 2);
+                        temperature.nozzle = std::stof(value);
+                    }
+
+                    if (value.find("B:") != std::string::npos && isok) {
+                        value.erase(value.find("B:"), 2);
+                        temperature.bed = std::stof(value);
+                    }
+
+
                     value.clear();
                 }
-
-                if (value.find("T:") != std::string::npos  && isok) {
-                    value.erase(value.find("T:"), 2);
-                    std::cout << "Nozzle = " << value;
-                }
-                if (value.find("B:") != std::string::npos && isok) {
-                    value.erase(value.find("B:"), 2);
-                    std::cout << "Bed = " << value << std::endl;
-                }
-                value.clear();
             }
             
                 value.push_back(n);
-
-
-
-
 
         }
 
@@ -160,7 +203,7 @@ public:
                 //auto z = target.find('\n');
                 lastread.append(target);
                 
-               
+                // both control seperated because of the  temeprature return 
                 if (lastread.find("ok") != std::string::npos && lastread.find("\n") != std::string::npos) {
                     queue.push_back(lastread);
                     Parser(lastread);
@@ -181,16 +224,10 @@ public:
         std::unique_lock<std::mutex> lock{ n };
         int writebyte;
         if (!text.empty()) {
-            if (text == "M0\n") {
-                std::cout << "m0 geldi" << std::endl;
-
-            }
             serial.Write(text);
             std::cout << "writed code  = " << text;
         }
     
-
-      //  }
     }
     
 
@@ -234,9 +271,12 @@ private:
     std::string lastread;
     bool canwrite = true;
     std::vector<std::function<std::string()>> functions;
+    std::vector<std::function<std::string()>> urgentfunctions;
+
     int lastfunction = -1;
-
-
+    Temperature temperature;
+    std::string errormessage;
+    bool hasurgent;
 };
 
 

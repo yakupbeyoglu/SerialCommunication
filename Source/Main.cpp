@@ -4,15 +4,17 @@
 #include <thread>
 
 std::vector<std::string> requesttest = { "M105\n","","M106 S255\n"};
-std::vector<std::string> requesttest2 = { "G0 Z10\n","G0 Z0\n","G0 Z10\n","M106 S0\n" };
+std::vector<std::string> requesttest2 = { "G0 Z10\n","G0 Z0\n","M105\n","M106 S0\n" };
 
+//std::string urgentest;
 std::string Print() {
    
     if (!requesttest.empty()) {
         auto target = requesttest.front();
         requesttest.erase(requesttest.begin());
         return target;
-   }
+    }
+
     return "";
     
 
@@ -24,8 +26,20 @@ std::string Print2() {
         requesttest2.erase(requesttest2.begin());
         return target;
     }
+
     return "";
 }
+
+/*
+std::string myurget() {
+
+    if (!urgenttest.empty()) {
+        return urgenttest;
+    }
+
+    return "";
+}
+*/
 
 int main(){
 	std::cout<<"hello cmake test"<<std::endl;
@@ -33,7 +47,7 @@ int main(){
   Host host;
   host.Register(Print);
   host.Register(Print2);
-
+  //host.UrgentRegister(myurget);
 
   while (1) {
       if (requesttest.empty() && requesttest2.empty()) {
